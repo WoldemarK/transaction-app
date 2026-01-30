@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: TransactionServiceAPI
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/transaction-postgres
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      org.hibernate:
+        envers:
+          autoRegisterListeners: true
+          audit_table_suffix: _history
+          default_schema: transaction_history
+          store_data_at_delete: true
+          revision_field_name: revision
+          revision_type_field_name: revision_type
+          revision_sequence_name: transaction_history.revinfo_seq
+          hibernate:
+            default_schema: transaction-postgres
+            show_sql: ${SHOW_SQL:true}
+            format_sql: ${FORMAT_SQL:true}
+            highlight_sql: ${HIGHLIGHT_SQL:true}
+            session.events.log.LOG_QUERIES_SLOWER_THAN_MS: ${SLOW_SQL_QUERY_INDICATOR_MS:1500}
+            hbm2ddl:
+              auto: validate
+          database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,prometheus
+#  endpoint:
+#    prometheus:
+#      access: read_only
+#  prometheus:
+#    metrics:
+#      export:
+#        enabled: true
+#  tracing:
+#    enabled: true
+#    sampling:
+#      probability: 1.0
+#
+#otel:
+#  exporter:
+#    otlp:
+#      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://localhost:4318}
+#      protocol: http/protobuf
+#  logs:
+#    exporter: none
+#  metrics:
+#    exporter: none
+#logging:
+#  config: "classpath:logback.xml"
