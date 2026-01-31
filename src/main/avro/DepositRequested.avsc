@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "DepositRequested",
+  "namespace": "com.kovtynov.avro",
+  "fields": [
+    { "name": "uid", "type": "string" },
+    { "name": "subject", "type": "string" },
+    { "name": "description", "type": "string" }
+  ]
+}

@@ -24,7 +24,7 @@ public class Wallet extends AuditableEntity{
     private WalletType walletType;
 
     @Column(name = "user_uid", nullable = false)
-    private UUID userUid; // или связь @ManyToOne с User, если есть сущность
+    private UUID userUid;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30, nullable = false)
@@ -33,11 +33,4 @@ public class Wallet extends AuditableEntity{
     @Column(name = "balance", precision = 19, scale = 4, nullable = false)
     private BigDecimal balance = BigDecimal.ZERO;
 
-    // Связь один-ко-многим с транзакциями
-    @OneToMany(mappedBy = "wallet", fetch = FetchType.LAZY)
-    private List<Transaction> transactions = new ArrayList<>();
-
-    // Для транзакций типа TRANSFER (кошельки-получатели)
-    @OneToMany(mappedBy = "targetWallet", fetch = FetchType.LAZY)
-    private List<Transaction> incomingTransactions = new ArrayList<>();
 }
