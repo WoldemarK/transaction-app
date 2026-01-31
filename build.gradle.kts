@@ -1,4 +1,5 @@
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+import org.springframework.boot.gradle.tasks.bundling.BootJar
 
 val versions = mapOf(
     "springCloudStarterOpenfeign" to "4.1.1",
@@ -18,7 +19,7 @@ description = "transaction-app"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -48,7 +49,6 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign:${versions["springCloudStarterOpenfeign"]}")
     implementation("io.github.openfeign:feign-micrometer:${versions["feignMicrometerVersion"]}")
 
-
     // Database
     runtimeOnly("org.postgresql:postgresql")
 
@@ -65,6 +65,13 @@ dependencies {
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.18")
 
+    // Apache ShardingSphere JDBC
+    implementation("org.apache.shardingsphere:shardingsphere-jdbc-core:5.4.1") {
+        exclude(group = "org.glassfish.jaxb", module = "jaxb-runtime")
+        exclude(group = "org.glassfish.jaxb", module = "jaxb-core")
+        exclude(group = "jakarta.xml.bind", module = "jakarta.xml.bind-api")
+    }
+
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
@@ -74,24 +81,29 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Настройка обработки дубликатов для bootJar
+tasks.withType<BootJar> {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 /*
 ──────────────────────────────────────────────────────
 ============== Api generation ==============
 ──────────────────────────────────────────────────────
 */
 val openApiDir = file("${rootDir}/openapi")
-val foundSpecifications = openApiDir.listFiles { f -> f.extension in listOf("yaml", "yml") } ?: emptyArray()
-logger.lifecycle("Found ${foundSpecifications.size} specifications: " + foundSpecifications.joinToString { it.name })
+val foundSpecifications = openApiDir.listFiles { _, name -> name.endsWith(".yaml") || name.endsWith(".yml") } ?: emptyArray()
+logger.lifecycle("Found ${foundSpecifications.size} specifications: ${foundSpecifications.joinToString { it.name }}")
 
 foundSpecifications.forEach { specFile ->
     val ourDir = getAbsolutePath(specFile.nameWithoutExtension)
     val packageName = defineJavaPackageName(specFile.nameWithoutExtension)
 
     val taskName = buildGenerateApiTaskName(specFile.nameWithoutExtension)
-    logger.lifecycle("Register task ${taskName} from ${ourDir.get()}")
-    val basePackage = "com.example.${packageName}"
+    logger.lifecycle("Register task $taskName from ${ourDir.get()}")
+    val basePackage = "com.example.$packageName"
 
-    tasks.register(taskName, GenerateTask::class) {
+    tasks.register<GenerateTask>(taskName) {
         generatorName.set("spring")
         inputSpec.set(specFile.absolutePath)
         outputDir.set(ourDir)
@@ -105,9 +117,9 @@ foundSpecifications.forEach { specFile ->
                 "useTags" to "true",
                 "useJakartaEe" to "true",
                 "initializeCollections" to "false",
-                "apiPackage" to "${basePackage}.api",
-                "modelPackage" to "${basePackage}.dto",
-                "configPackage" to "${basePackage}.config"
+                "apiPackage" to "$basePackage.api",
+                "modelPackage" to "$basePackage.dto",
+                "configPackage" to "$basePackage.config"
             )
         )
         additionalProperties.set(
@@ -127,7 +139,7 @@ foundSpecifications.forEach { specFile ->
 
 fun getAbsolutePath(nameWithoutExtension: String): Provider<String> {
     return layout.buildDirectory
-        .dir("generated-sources/openapi/${nameWithoutExtension}")
+        .dir("generated-sources/openapi/$nameWithoutExtension")
         .map { it.asFile.absolutePath }
 }
 
@@ -156,8 +168,10 @@ fun buildTaskName(taskPrefix: String, name: String): String {
 
 val withoutExtensionNames = foundSpecifications.map { it.nameWithoutExtension }
 sourceSets.named("main") {
-    withoutExtensionNames.forEach { name ->
-        java.srcDir(layout.buildDirectory.dir("generated-sources/openapi/$name/src/main/java"))
+    java {
+        withoutExtensionNames.forEach { name ->
+            srcDir(layout.buildDirectory.dir("generated-sources/openapi/$name/src/main/java"))
+        }
     }
 }
 
