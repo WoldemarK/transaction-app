@@ -30,7 +30,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2023.0.3")
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         mavenBom("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.15.0")
     }
 }
@@ -71,6 +71,8 @@ dependencies {
         exclude(group = "org.glassfish.jaxb", module = "jaxb-core")
         exclude(group = "jakarta.xml.bind", module = "jakarta.xml.bind-api")
     }
+    // Logging JSON encoder
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -30,31 +30,37 @@ spring:
               auto: validate
           database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-#management:
-#  endpoints:
-#    web:
-#      exposure:
-#        include: health,info,prometheus
-#  endpoint:
-#    prometheus:
-#      access: read_only
-#  prometheus:
-#    metrics:
-#      export:
-#        enabled: true
-#  tracing:
-#    enabled: true
-#    sampling:
-#      probability: 1.0
-#
-#otel:
-#  exporter:
-#    otlp:
-#      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://localhost:4318}
-#      protocol: http/protobuf
-#  logs:
-#    exporter: none
-#  metrics:
-#    exporter: none
-#logging:
-#  config: "classpath:logback.xml"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      access: read_only
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://localhost:4318}
+      protocol: http/protobuf
+  logs:
+    exporter: none
+  metrics:
+    exporter: none
+logging:
+  config: "classpath:logback.xml"
+
+individuals:
+  api:
+    url: http://localhost:8081/api/v1
+    connect-timeout: 5000
+    read-timeout: 10000
