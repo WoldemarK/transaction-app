@@ -22,6 +22,7 @@ public class Transaction extends AuditableEntity{
     @JoinColumn(name = "wallet_uid", nullable = false)
     private Wallet wallet;
 
+    @Builder.Default
     @Column(name = "amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal amount = BigDecimal.ZERO;
 

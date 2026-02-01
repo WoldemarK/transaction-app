@@ -1,0 +1,122 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: ""
+    username: ""
+    password: ""
+
+  shardingsphere:
+    mode:
+      type: Standalone
+
+    datasource:
+      names: ds0,ds1
+      ds0:
+        jdbcUrl: jdbc:postgresql://${POSTGRES_HOST_DS0:postgres-ds0}:${POSTGRES_PORT:5432}/transaction_ds0
+        username: ${DB_USER:postgres}
+        password: ${DB_PASSWORD:postgres}
+        driverClassName: org.postgresql.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+        props:
+          maximumPoolSize: 20
+          connectionTimeout: 30000
+          idleTimeout: 600000
+      ds1:
+        jdbcUrl: jdbc:postgresql://${POSTGRES_HOST_DS1:postgres-ds1}:${POSTGRES_PORT:5432}/transaction_ds1
+        username: ${DB_USER:postgres}
+        password: ${DB_PASSWORD:postgres}
+        driverClassName: org.postgresql.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+        props:
+          maximumPoolSize: 20
+          connectionTimeout: 30000
+          idleTimeout: 600000
+
+    rules:
+      sharding:
+        broadcast-tables:
+          - wallet_types
+
+        tables:
+          wallets:
+            actual-data-nodes: ds$->{0..1}.wallets
+            database-strategy:
+              standard:
+                sharding-column: user_uid
+                sharding-algorithm-name: user-uuid-algorithm
+
+          transactions:
+            actual-data-nodes: ds$->{0..1}.transactions
+            database-strategy:
+              standard:
+                sharding-column: user_uid
+                sharding-algorithm-name: user-uuid-algorithm
+
+        sharding-algorithms:
+          user-uuid-algorithm:
+            type: UUID_MOD
+            props:
+              sharding-count: 2
+
+    props:
+      sql-show: ${SQL_SHOW:false}
+      check-table-metadata-enabled: false
+
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+logging:
+  level:
+    org.apache.shardingsphere: INFO
+    org.example.transactionapp.sharding: DEBUG
+    config: "classpath:logback.xml"
+
+# Настройки для подключения к другим сервисам
+individuals:
+  api:
+    url: ${INDIVIDUALS_API_URL:http://individuals-api:8081/api/v1}
+    connect-timeout: ${INDIVIDUALS_CONNECT_TIMEOUT:5000}
+    read-timeout: ${INDIVIDUALS_READ_TIMEOUT:10000}action_ds1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      access: read_only
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://localhost:4318}
+      protocol: http/protobuf
+  logs:
+    exporter: none
+  metrics:
+    exporter: none
+

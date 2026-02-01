@@ -1,0 +1,70 @@
+schemaName: sharding_db
+
+dataSources:
+  ds0:
+    url: jdbc:postgresql://postgres-shard0:5432/transaction_ds0
+    username: postgres
+    password: postgres
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maximumPoolSize: 50
+  ds1:
+    url: jdbc:postgresql://postgres-shard1:5432/transaction-postgres-ds1
+    username: postgres
+    password: postgres
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maximumPoolSize: 50
+
+rules:
+  - !SHARDING
+    tables:
+      wallets:
+        actualDataNodes: ds${0..1}.wallets
+        tableStrategy:
+          standard:
+            shardingColumn: user_uid
+            shardingAlgorithmName: user_hash_mod
+        keyGenerateStrategy:
+          column: uid
+          keyGeneratorName: uuid_generator
+
+      transactions:
+        actualDataNodes: ds${0..1}.transactions
+        tableStrategy:
+          standard:
+            shardingColumn: user_uid
+            shardingAlgorithmName: user_hash_mod
+        keyGenerateStrategy:
+          column: uid
+          keyGeneratorName: uuid_generator
+
+    defaultDatabaseStrategy:
+      standard:
+        shardingColumn: user_uid
+        shardingAlgorithmName: user_hash_mod
+
+    shardingAlgorithms:
+      user_hash_mod:
+        type: HASH_MOD
+        props:
+          sharding-count: 2
+
+    keyGenerators:
+      uuid_generator:
+        type: UUID
+        props:
+          worker-id: 123
+
+  - !BROADCAST
+    tables:
+      - wallet_types
+
+  - !READWRITE_SPLITTING
+    dataSources:
+      rw_ds:
+        writeDataSourceName: ds0
+        readDataSourceNames:
+          - ds1

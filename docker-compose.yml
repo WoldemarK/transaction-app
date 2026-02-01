@@ -1,30 +1,126 @@
 services:
-  transaction-postgres:
-    image: postgres:17
-    container_name: transaction-postgres
+  postgres-ds0:
+    image: postgres:17-alpine
+    container_name: transaction-postgres-ds0
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: transaction-postgres
+      POSTGRES_DB: transaction_ds0
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_ds0_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks:
+      - observability-net
 
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter
-    container_name: postgres-exporter
+  postgres-ds1:
+    image: postgres:17-alpine
+    container_name: transaction-postgres-ds1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: transaction_ds1
+    volumes:
+      - postgres_ds1_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - observability-net
+
+  flyway-shard0:
+    image: flyway/flyway:9.22
+    depends_on:
+      postgres-ds0:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres-ds0:5432/transaction_ds0
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: postgres
+      FLYWAY_CONNECT_RETRIES: 60
+    volumes:
+      - ./flyway/sql:/flyway/sql
+    command: migrate
+    networks:
+      - observability-net
+
+  flyway-shard1:
+    image: flyway/flyway:9.22
+    depends_on:
+      postgres-ds1:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres-ds1:5432/transaction_ds1
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: postgres
+      FLYWAY_CONNECT_RETRIES: 60
+    volumes:
+      - ./flyway/sql:/flyway/sql
+    command: migrate
+    networks:
+      - observability-net
+
+  shardingsphere-proxy:
+    image: apache/shardingsphere-proxy:5.3.0
+    container_name: shardingsphere-proxy
+    depends_on:
+      flyway-shard0:
+        condition: service_completed_successfully
+      flyway-shard1:
+        condition: service_completed_successfully
+    ports:
+      - "3307:3307"
+      - "3308:3308"
+    volumes:
+      - ./shardingsphere/server.yaml:/opt/shardingsphere-proxy/conf/server.yaml
+      - ./shardingsphere/config-sharding.yaml:/opt/shardingsphere-proxy/conf/config-sharding.yaml
+    environment:
+      SS_MODE: Standalone
+    command: [ "bin/start.sh" ]
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "3307" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - observability-net
+
+  postgres-exporter-ds0:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: postgres-exporter-ds0
     ports:
       - "9187:9187"
     environment:
-      DATA_SOURCE_NAME: "postgresql://user:password@postgres:5432/events_db?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-ds0:5432/transaction_ds0?sslmode=disable"
     depends_on:
-      transaction-postgres:
+      postgres-ds0:
+        condition: service_healthy
+    networks:
+      - observability-net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9187/metrics" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-exporter-ds1:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: postgres-exporter-ds1
+    ports:
+      - "9188:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-ds1:5432/transaction_ds1?sslmode=disable"
+    depends_on:
+      postgres-ds1:
         condition: service_healthy
     networks:
       - observability-net
@@ -41,30 +137,32 @@ services:
     container_name: transaction-service
     ports:
       - "8091:8091"
-    working_dir: /app
     environment:
-      POSTGRES_HOST: transaction-postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: transaction-postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
+      SPRING_DATASOURCE_USERNAME: sharding_user
+      SPRING_DATASOURCE_PASSWORD: SecurePass123!
       SPRING_PROFILES_ACTIVE: docker
+      MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "true"
     depends_on:
-      transaction-postgres:
+      shardingsphere-proxy:
         condition: service_healthy
+      kafka1:
+        condition: service_healthy
+    networks:
+      - observability-net
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-    networks:
-      - observability-net
     healthcheck:
-      test: [ "CMD", "echo", "ruok", "|", "nc", "localhost", "2181", "|", "grep", "imok" ]
+      test: [ "CMD", "bash", "-c", "echo ruok | nc localhost 2181 | grep imok" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - observability-net
 
   kafka1:
     image: confluentinc/cp-kafka:7.5.0
@@ -72,19 +170,12 @@ services:
     hostname: kafka1
     ports:
       - "9092:9092"
-    volumes:
-      - kafka1_data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -96,20 +187,13 @@ services:
     container_name: kafka2
     hostname: kafka2
     ports:
-      - "9093:9093"
-    volumes:
-      - kafka2_data:/var/lib/kafka/data
+      - "9093:9092"
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -121,23 +205,40 @@ services:
     container_name: kafka3
     hostname: kafka3
     ports:
-      - "9094:9094"
-    volumes:
-      - kafka3_data:/var/lib/kafka/data
+      - "9094:9092"
     environment:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9094", "--list" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     depends_on:
       zookeeper:
         condition: service_healthy
+    networks:
+      - observability-net
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka1:9092"
+      - "--kafka.server=kafka2:9092"
+      - "--kafka.server=kafka3:9092"
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9308/metrics" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - observability-net
 
@@ -170,37 +271,10 @@ services:
     ports:
       - "8070:8080"
     environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=kafka1:9092,kafka2:9093,kafka3:9094
-      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
-      - KAFKA_CLUSTERS_0_SCHEMAREGISTRY=http://schema-registry:8081
-    depends_on:
-      kafka1:
-        condition: service_healthy
-      kafka2:
-        condition: service_healthy
-      kafka3:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    networks:
-      - observability-net
-    healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  kafka-exporter:
-    image: danielqsj/kafka-exporter
-    container_name: kafka-exporter
-    ports:
-      - "9308:9308"
-    restart: unless-stopped
-    command:
-      - "--kafka.server=kafka1:9092"
-      - "--kafka.server=kafka2:9093"
-      - "--kafka.server=kafka3:9094"
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: kafka1:9092,kafka2:9092,kafka3:9092  # ← все на 9092!
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
     depends_on:
       kafka1:
         condition: service_healthy
@@ -210,11 +284,6 @@ services:
         condition: service_healthy
     networks:
       - observability-net
-    healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9308/metrics" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   prometheus:
     image: prom/prometheus:latest
@@ -285,37 +354,35 @@ services:
     container_name: alloy
     user: root
     ports:
-      - "9080:9080"  # HTTP-интерфейс Alloy (по умолчанию)
-      - "4317:4317"   # OTLP gRPC (важно!)
-      - "4318:4318"   # OTLP HTTP (если нужен)
+      - "9080:9080"
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/log:/var/log:ro
-    environment:
-      GRAFANA_LOKI_URL: http://loki:3100/loki/api/v1/push  # локальный Loki
+      - alloy_data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - observability-net
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:9080
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
-    networks:
-      - observability-net
 
 networks:
   observability-net:
     driver: bridge
 
 volumes:
-  postgres_data:
-  grafana-storage:
+  postgres_ds0_data:
+  postgres_ds1_data:
   kafka1_data:
   kafka2_data:
   kafka3_data:
   schema_registry_data:
-  loki_data:
+  grafana-storage:
   loki_chunks:
   loki_index:
   loki_rules:
   tempo_data:
+  alloy_data:

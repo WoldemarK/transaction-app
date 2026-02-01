@@ -30,6 +30,7 @@ public class Wallet extends AuditableEntity{
     @Column(name = "status", length = 30, nullable = false)
     private WalletTypeStatus status;
 
+    @Builder.Default
     @Column(name = "balance", precision = 19, scale = 4, nullable = false)
     private BigDecimal balance = BigDecimal.ZERO;
 

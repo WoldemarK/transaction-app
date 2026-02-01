@@ -51,6 +51,8 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
+    // Flyway
+    implementation("org.flywaydb:flyway-database-postgresql")
 
     // Lombok
     compileOnly("org.projectlombok:lombok")
@@ -103,7 +105,9 @@ foundSpecifications.forEach { specFile ->
 
     val taskName = buildGenerateApiTaskName(specFile.nameWithoutExtension)
     logger.lifecycle("Register task $taskName from ${ourDir.get()}")
-    val basePackage = "com.example.$packageName"
+
+    // ✅ ИСПРАВЛЕНО: правильный пакет
+    val basePackage = "org.example.transactionapp"
 
     tasks.register<GenerateTask>(taskName) {
         generatorName.set("spring")
