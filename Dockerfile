@@ -4,8 +4,9 @@ WORKDIR /home/gradle/project
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 COPY src ./src
-
-RUN gradle --no-daemon clean bootJar
+COPY src/main/resources/logback.xml /app/classes/logback.xml
+COPY openapi ./openapi
+RUN gradle --no-daemon generateAllOpenApi bootJar
 
 FROM eclipse-temurin:21-alpine
 WORKDIR /app

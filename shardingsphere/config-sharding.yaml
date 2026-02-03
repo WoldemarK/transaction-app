@@ -1,70 +1,61 @@
-schemaName: sharding_db
+databaseName: sharding_db
 
 dataSources:
-  ds0:
-    url: jdbc:postgresql://postgres-shard0:5432/transaction_ds0
-    username: postgres
-    password: postgres
+  ds_0:
+    url: jdbc:postgresql://postgres-0:5432/wallet_db_0
+    username: sharding_user
+    password: SecurePass123!
     connectionTimeoutMilliseconds: 30000
     idleTimeoutMilliseconds: 60000
     maxLifetimeMilliseconds: 1800000
-    maximumPoolSize: 50
-  ds1:
-    url: jdbc:postgresql://postgres-shard1:5432/transaction-postgres-ds1
-    username: postgres
-    password: postgres
+    maxPoolSize: 20
+
+  ds_1:
+    url: jdbc:postgresql://postgres-1:5432/wallet_db_1
+    username: sharding_user
+    password: SecurePass123!
     connectionTimeoutMilliseconds: 30000
     idleTimeoutMilliseconds: 60000
     maxLifetimeMilliseconds: 1800000
-    maximumPoolSize: 50
+    maxPoolSize: 20
 
 rules:
   - !SHARDING
     tables:
       wallets:
-        actualDataNodes: ds${0..1}.wallets
+        actualDataNodes: ds_${0..1}.wallets_${0..1}
+        databaseStrategy:
+          standard:
+            shardingColumn: user_uid
+            shardingAlgorithmName: db-inline
         tableStrategy:
           standard:
             shardingColumn: user_uid
-            shardingAlgorithmName: user_hash_mod
-        keyGenerateStrategy:
-          column: uid
-          keyGeneratorName: uuid_generator
+            shardingAlgorithmName: wallet-inline
 
       transactions:
-        actualDataNodes: ds${0..1}.transactions
+        actualDataNodes: ds_${0..1}.transactions_${0..1}
+        databaseStrategy:
+          standard:
+            shardingColumn: user_uid
+            shardingAlgorithmName: db-inline
         tableStrategy:
           standard:
             shardingColumn: user_uid
-            shardingAlgorithmName: user_hash_mod
-        keyGenerateStrategy:
-          column: uid
-          keyGeneratorName: uuid_generator
-
-    defaultDatabaseStrategy:
-      standard:
-        shardingColumn: user_uid
-        shardingAlgorithmName: user_hash_mod
+            shardingAlgorithmName: tx-inline
 
     shardingAlgorithms:
-      user_hash_mod:
-        type: HASH_MOD
+      db-inline:
+        type: INLINE
         props:
-          sharding-count: 2
+          algorithm-expression: ds_${user_uid.hashCode() % 2}
 
-    keyGenerators:
-      uuid_generator:
-        type: UUID
+      wallet-inline:
+        type: INLINE
         props:
-          worker-id: 123
+          algorithm-expression: wallets_${user_uid.hashCode() % 2}
 
-  - !BROADCAST
-    tables:
-      - wallet_types
-
-  - !READWRITE_SPLITTING
-    dataSources:
-      rw_ds:
-        writeDataSourceName: ds0
-        readDataSourceNames:
-          - ds1
+      tx-inline:
+        type: INLINE
+        props:
+          algorithm-expression: transactions_${user_uid.hashCode() % 2}

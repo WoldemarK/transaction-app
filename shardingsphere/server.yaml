@@ -1,20 +1,12 @@
 mode:
   type: Standalone
-  repository:
-    type: File
-    props:
-      path: /opt/shardingsphere-proxy/repository
 
-authentication:
+authority:
   users:
-    root:
-      password: root
-    sharding_user:
+    - user: sharding_user@%
       password: SecurePass123!
-      authorizedSchemas: sharding_db
+  privilege:
+    type: ALL_PERMITTED
 
 props:
   sql-show: true
-  max-connections-size-per-query: 20
-  executor-size: 16
-  proxy-frontend-flush-threshold: 128

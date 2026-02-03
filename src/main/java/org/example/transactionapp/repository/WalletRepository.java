@@ -1,6 +1,7 @@
 package org.example.transactionapp.repository;
 
 import org.example.transactionapp.entity.Wallet;
+import org.example.transactionapp.entity.WalletType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,4 +20,5 @@ public interface WalletRepository extends JpaRepository<Wallet, UUID> {
                     @Param("status") String status
             );
 
+    boolean existsByUserUidAndWalletType(UUID userUid, WalletType walletType);
 }

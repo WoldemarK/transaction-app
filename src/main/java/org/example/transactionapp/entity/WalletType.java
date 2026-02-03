@@ -3,6 +3,8 @@ package org.example.transactionapp.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
+
 
 @Getter
 @Setter
@@ -26,9 +28,10 @@ public class WalletType extends AuditableEntity {
     @Column(name = "user_type", length = 15)
     private String userType;
 
-    @Column(name = "creator", length = 255)
+    @Column(name = "creator")
     private String creator;
 
-    @Column(name = "modifier", length = 255)
+    @Column(name = "modifier")
     private String modifier;
+
 }

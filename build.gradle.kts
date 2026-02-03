@@ -22,12 +22,10 @@ java {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
-
 repositories {
     mavenCentral()
     mavenLocal()
 }
-
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
@@ -66,6 +64,7 @@ dependencies {
 
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.18")
+    implementation("ch.qos.logback:logback-core:1.5.18")
 
     // Apache ShardingSphere JDBC
     implementation("org.apache.shardingsphere:shardingsphere-jdbc-core:5.4.1") {
@@ -98,22 +97,16 @@ tasks.withType<BootJar> {
 val openApiDir = file("${rootDir}/openapi")
 val foundSpecifications = openApiDir.listFiles { _, name -> name.endsWith(".yaml") || name.endsWith(".yml") } ?: emptyArray()
 logger.lifecycle("Found ${foundSpecifications.size} specifications: ${foundSpecifications.joinToString { it.name }}")
-
 foundSpecifications.forEach { specFile ->
     val ourDir = getAbsolutePath(specFile.nameWithoutExtension)
     val packageName = defineJavaPackageName(specFile.nameWithoutExtension)
-
     val taskName = buildGenerateApiTaskName(specFile.nameWithoutExtension)
     logger.lifecycle("Register task $taskName from ${ourDir.get()}")
-
-    // ✅ ИСПРАВЛЕНО: правильный пакет
     val basePackage = "org.example.transactionapp"
-
     tasks.register<GenerateTask>(taskName) {
         generatorName.set("spring")
         inputSpec.set(specFile.absolutePath)
         outputDir.set(ourDir)
-
         configOptions.set(
             mapOf(
                 "library" to "spring-cloud",

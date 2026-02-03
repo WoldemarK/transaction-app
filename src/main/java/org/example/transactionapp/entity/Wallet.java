@@ -14,8 +14,8 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "wallets")
-public class Wallet extends AuditableEntity{
+@Table(name = "wallets", uniqueConstraints = @UniqueConstraint(columnNames = {"user_uid,wallet_type_uid"}))
+public class Wallet extends AuditableEntity {
     @Column(name = "name", length = 32, nullable = false)
     private String name;
 
