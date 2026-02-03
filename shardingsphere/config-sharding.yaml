@@ -2,7 +2,7 @@ databaseName: sharding_db
 
 dataSources:
   ds_0:
-    url: jdbc:postgresql://postgres-0:5432/wallet_db_0
+    url: jdbc:postgresql://postgres-0:5432/sharding_db
     username: sharding_user
     password: SecurePass123!
     connectionTimeoutMilliseconds: 30000
@@ -11,7 +11,7 @@ dataSources:
     maxPoolSize: 20
 
   ds_1:
-    url: jdbc:postgresql://postgres-1:5432/wallet_db_1
+    url: jdbc:postgresql://postgres-1:5432/sharding_db
     username: sharding_user
     password: SecurePass123!
     connectionTimeoutMilliseconds: 30000
@@ -48,14 +48,14 @@ rules:
       db-inline:
         type: INLINE
         props:
-          algorithm-expression: ds_${user_uid.hashCode() % 2}
+          algorithm-expression: ds_${Math.abs(user_uid.hashCode()) % 2}
 
       wallet-inline:
         type: INLINE
         props:
-          algorithm-expression: wallets_${user_uid.hashCode() % 2}
+          algorithm-expression: wallets_${Math.abs(user_uid.hashCode()) % 2}
 
       tx-inline:
         type: INLINE
         props:
-          algorithm-expression: transactions_${user_uid.hashCode() % 2}
+          algorithm-expression: transactions_${Math.abs(user_uid.hashCode()) % 2}

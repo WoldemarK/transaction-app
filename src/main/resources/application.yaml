@@ -2,9 +2,6 @@ spring:
   application:
     name: transaction-app
 
-  datasource:
-    type: com.zaxxer.hikari.HikariDataSource
-
   shardingsphere:
     datasource:
       names: ds_0, ds_1
@@ -12,16 +9,16 @@ spring:
       ds_0:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: org.postgresql.Driver
-        jdbc-url: jdbc:postgresql://localhost:5432/wallet_db_0
-        username: postgres
-        password: postgres
+        jdbc-url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
+        username: sharding_user
+        password: SecurePass123!
 
       ds_1:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: org.postgresql.Driver
-        jdbc-url: jdbc:postgresql://localhost:5432/wallet_db_1
-        username: postgres
-        password: postgres
+        jdbc-url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
+        username: sharding_user
+        password: SecurePass123!
 
     rules:
       sharding:
@@ -67,16 +64,17 @@ spring:
     props:
       sql-show: true
 
+  jpa:
+    hibernate:
+      ddl-auto: none
+      database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    open-in-view: false
+
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: false
-    open-in-view: false
 
 management:
   endpoints:
@@ -112,13 +110,6 @@ otel:
   metrics:
     exporter: none
 
-#logging:
-#  config: classpath:logback.xml
-#  level:
-#    org.apache.shardingsphere: INFO
-#    org.springframework.jdbc: WARN
-#    org.hibernate.SQL: WARN
-#    com.zaxxer.hikari: INFO
 logging:
   level:
     root: INFO
