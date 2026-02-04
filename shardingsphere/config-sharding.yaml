@@ -5,18 +5,12 @@ dataSources:
     url: jdbc:postgresql://postgres-0:5432/sharding_db
     username: sharding_user
     password: SecurePass123!
-    connectionTimeoutMilliseconds: 30000
-    idleTimeoutMilliseconds: 60000
-    maxLifetimeMilliseconds: 1800000
     maxPoolSize: 20
 
   ds_1:
     url: jdbc:postgresql://postgres-1:5432/sharding_db
     username: sharding_user
     password: SecurePass123!
-    connectionTimeoutMilliseconds: 30000
-    idleTimeoutMilliseconds: 60000
-    maxLifetimeMilliseconds: 1800000
     maxPoolSize: 20
 
 rules:
@@ -26,36 +20,36 @@ rules:
         actualDataNodes: ds_${0..1}.wallets_${0..1}
         databaseStrategy:
           standard:
-            shardingColumn: user_uid
+            shardingColumn: user_uid_hash
             shardingAlgorithmName: db-inline
         tableStrategy:
           standard:
-            shardingColumn: user_uid
+            shardingColumn: user_uid_hash
             shardingAlgorithmName: wallet-inline
 
       transactions:
         actualDataNodes: ds_${0..1}.transactions_${0..1}
         databaseStrategy:
           standard:
-            shardingColumn: user_uid
+            shardingColumn: user_uid_hash
             shardingAlgorithmName: db-inline
         tableStrategy:
           standard:
-            shardingColumn: user_uid
+            shardingColumn: user_uid_hash
             shardingAlgorithmName: tx-inline
 
     shardingAlgorithms:
       db-inline:
         type: INLINE
         props:
-          algorithm-expression: ds_${Math.abs(user_uid.hashCode()) % 2}
+          algorithm-expression: ds_${user_uid_hash % 2}
 
       wallet-inline:
         type: INLINE
         props:
-          algorithm-expression: wallets_${Math.abs(user_uid.hashCode()) % 2}
+          algorithm-expression: wallets_${user_uid_hash % 2}
 
       tx-inline:
         type: INLINE
         props:
-          algorithm-expression: transactions_${Math.abs(user_uid.hashCode()) % 2}
+          algorithm-expression: transactions_${user_uid_hash % 2}

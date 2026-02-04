@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -20,8 +18,8 @@ public class WalletRestController  {
     private final WalletService walletService;
 
     @PostMapping
-    public ResponseEntity<Wallet> createWallet(UUID userId, CreateWalletRequest request) {
+    public ResponseEntity<Wallet> createWallet(CreateWalletRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(walletService.createWallet(userId, request));
+                .body(walletService.createWallet(request));
     }
 }

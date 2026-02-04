@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS wallet_types
 (
-    uid           UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
+    uid           UUID PRIMARY KEY ,
     created_at    TIMESTAMP   NOT NULL DEFAULT now(),
     modified_at   TIMESTAMP,
     name          VARCHAR(32) NOT NULL,

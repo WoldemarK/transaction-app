@@ -2,123 +2,91 @@ spring:
   application:
     name: transaction-app
 
-  shardingsphere:
-    datasource:
-      names: ds_0, ds_1
-
-      ds_0:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: org.postgresql.Driver
-        jdbc-url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
-        username: sharding_user
-        password: SecurePass123!
-
-      ds_1:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: org.postgresql.Driver
-        jdbc-url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
-        username: sharding_user
-        password: SecurePass123!
-
-    rules:
-      sharding:
-        tables:
-          wallets:
-            actual-data-nodes: ds_${0..1}.wallets_${0..1}
-            database-strategy:
-              standard:
-                sharding-column: user_uid
-                sharding-algorithm-name: db-inline
-            table-strategy:
-              standard:
-                sharding-column: user_uid
-                sharding-algorithm-name: wallet-inline
-
-          transactions:
-            actual-data-nodes: ds_${0..1}.transactions_${0..1}
-            database-strategy:
-              standard:
-                sharding-column: user_uid
-                sharding-algorithm-name: db-inline
-            table-strategy:
-              standard:
-                sharding-column: user_uid
-                sharding-algorithm-name: tx-inline
-
-        sharding-algorithms:
-          db-inline:
-            type: INLINE
-            props:
-              algorithm-expression: ds_${Math.abs(user_uid.hashCode()) % 2}
-
-          wallet-inline:
-            type: INLINE
-            props:
-              algorithm-expression: wallets_${Math.abs(user_uid.hashCode()) % 2}
-
-          tx-inline:
-            type: INLINE
-            props:
-              algorithm-expression: transactions_${Math.abs(user_uid.hashCode()) % 2}
-
-    props:
-      sql-show: true
+  datasource:
+    url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
+    username: sharding_user
+    password: ${SPRING_DATASOURCE_PASSWORD:SecurePass123!}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: ShardingProxyPool
 
   jpa:
     hibernate:
       ddl-auto: none
       database-platform: org.hibernate.dialect.PostgreSQLDialect
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        connection:
+          provider_disables_autocommit: true
+        generate_statistics: false
 
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    validate-on-migrate: true
+    encoding: UTF-8
+    connect-retries: 5
+    connect-retries-interval: 10s
+
+server:
+  port: 8091
+  servlet:
+    context-path: /api
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
-
+        include: health,info,prometheus,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
+      roles: ACTUATOR
     prometheus:
-      access: read_only
-
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
-      environment: ${ENV:development}
+      environment: ${ENV:docker}
     export:
       prometheus:
         enabled: true
-
-  tracing:
-    sampling:
-      probability: 1.0
+        step: 1m
 
 otel:
   exporter:
     otlp:
-      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://localhost:4318}
+      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://alloy:4318}
       protocol: http/protobuf
   logs:
-    exporter: none
+    exporter: otlp
   metrics:
-    exporter: none
+    exporter: prometheus
 
 logging:
   level:
     root: INFO
     org.springframework: INFO
+    org.apache.kafka: WARN
+    org.hibernate: WARN
+    com.zaxxer.hikari: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 individuals:
   api:
-    url: http://localhost:8081/api/v1
+    url: ${INDIVIDUALS_API_URL:http://individuals-service:8081/api/v1}
     connect-timeout: 5000
     read-timeout: 10000

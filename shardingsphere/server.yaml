@@ -11,3 +11,7 @@ authority:
 props:
   sql-show: true
   max-connections-size-per-query: 1
+  check-table-meta-data-enabled: false
+  query-with-cipher-column: false
+  proxy-distributed-transaction-type: NONE
+  disable-transaction-check: true

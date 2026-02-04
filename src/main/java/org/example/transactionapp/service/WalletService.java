@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -21,7 +20,7 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final WalletTypeRepository walletTypeRepository;
 
-    public Wallet createWallet(UUID userId, CreateWalletRequest request) {
+    public Wallet createWallet(CreateWalletRequest request) {
         WalletType walletType = walletTypeRepository.findByCurrencyCodeAndStatus
                 (
                         request.getCurrency(),
