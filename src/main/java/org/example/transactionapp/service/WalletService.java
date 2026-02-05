@@ -5,12 +5,16 @@ import org.example.transactionapp.dto.CreateWalletRequest;
 import org.example.transactionapp.entity.Wallet;
 import org.example.transactionapp.entity.WalletType;
 import org.example.transactionapp.entity.WalletTypeStatus;
+import org.example.transactionapp.exceptions.WalletNotFoundException;
 import org.example.transactionapp.repository.WalletRepository;
 import org.example.transactionapp.repository.WalletTypeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -41,9 +45,17 @@ public class WalletService {
                         request.getInitialBalance() != null
                                 ? BigDecimal.valueOf(request.getInitialBalance())
                                 : BigDecimal.ZERO
-                )
-                .build();
+                ).build();
 
         return walletRepository.save(wallet);
+    }
+
+    public Wallet getInformationByWalletId(UUID walletId) {
+        Optional.ofNullable(walletId)
+                .orElseThrow(() -> new IllegalArgumentException("Идентификатор кошелька не может быть пустым"));
+        return walletRepository.findById(walletId)
+                .filter(wallet -> wallet.getStatus() == WalletTypeStatus.ACTIVE)
+                .orElseThrow(() -> new WalletNotFoundException(
+                        String.format("Активный кошелек с идентификатором %s не найден", walletId)));
     }
 }
