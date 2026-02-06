@@ -9,6 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -24,13 +25,15 @@ public class AuditableEntity implements Serializable {
     @CreationTimestamp
     @JsonFormat(pattern = "dd.MM.yyyy")
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant created;
+    private OffsetDateTime created;
 
     @UpdateTimestamp
     @JsonFormat(pattern = "dd.MM.yyyy")
     @Column(name = "modified_at",nullable = false)
-    private Instant updated;
+    private OffsetDateTime modifiedAt;
 
     @Column(name = "archived_at")
-    private Instant archivedAt;
+    private OffsetDateTime archivedAt;
+
+
 }

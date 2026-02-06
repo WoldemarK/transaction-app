@@ -272,67 +272,67 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-#
-#  # ==================== Tempo (Distributed Tracing) ====================
-#  tempo:
-#    image: grafana/tempo:2.4.1
-#    container_name: tempo
-#    command: ["-config.file=/etc/tempo/tempo.yaml"]
-#    volumes:
-#      - ./monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
-#      - tempo_data:/var/tempo
-#    ports:
-#      - "3200:3200"
-#      - "4317:4317"
-#      - "4318:4318"
-#    networks:
-#      - app-network
-#    restart: unless-stopped
-#
-#  # ==================== Loki (Logs) ====================
-#  loki:
-#    image: grafana/loki:2.9.2
-#    container_name: loki
-#    ports:
-#      - "3100:3100"
-#    command: -config.file=/etc/loki/loki-config.yaml
-#    volumes:
-#      - ./monitoring/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-#      - loki_chunks:/tmp/loki/chunks
-#      - loki_index:/tmp/loki/index
-#      - loki_rules:/tmp/loki/rules
-#    networks:
-#      - app-network
-#    restart: unless-stopped
-#
-#  # ==================== Alloy (Telemetry Collector) ====================
-#  alloy:
-#    image: grafana/alloy:v1.3.0
-#    container_name: alloy
-#    user: root
-#    ports:
-#      - "9080:9080"
-#      - "12345:12345"
-#    volumes:
-#      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
-#      - alloy_data:/var/lib/alloy/data
-#      - /var/run/docker.sock:/var/run/docker.sock:ro
-#    networks:
-#      - app-network
-#    command:
-#      - run
-#      - --server.http.listen-addr=0.0.0.0:9080
-#      - --server.http.ui-path-prefix=/
-#      - --storage.path=/var/lib/alloy/data
-#      - /etc/alloy/config.alloy
-#    depends_on:
-#      loki:
-#        condition: service_started
-#      tempo:
-#        condition: service_started
-#      prometheus:
-#        condition: service_healthy
-#    restart: unless-stopped
+
+  # ==================== Tempo (Distributed Tracing) ====================
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ==================== Loki (Logs) ====================
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./monitoring/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_chunks:/tmp/loki/chunks
+      - loki_index:/tmp/loki/index
+      - loki_rules:/tmp/loki/rules
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ==================== Alloy (Telemetry Collector) ====================
+  alloy:
+    image: grafana/alloy:v1.3.0
+    container_name: alloy
+    user: root
+    ports:
+      - "9080:9080"
+      - "12345:12345"
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - app-network
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:9080
+      - --server.http.ui-path-prefix=/
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
 
 networks:
   app-network:

@@ -5,5 +5,6 @@ public enum TransactionStatus {
     PROCESSING,   // в процессе выполнения
     COMPLETED,    // успешно завершена
     FAILED,       // неудачно завершена
-    CANCELLED     // отменена
+    CANCELLED,     // отменена
+    NWE
 }

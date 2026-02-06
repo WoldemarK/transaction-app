@@ -73,7 +73,7 @@ paths:
 
   /transactions/{type}/init:
     post:
-      summary: Инициализация транзакции (без создания)
+      summary: Инициализация транзакции
       parameters:
         - name: type
           in: path
@@ -106,7 +106,7 @@ paths:
 
   /transactions/{type}/confirm:
     post:
-      summary: Подтверждение и запуск транзакции
+      summary: Подтверждение транзакции
       parameters:
         - name: type
           in: path
@@ -119,10 +119,7 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/DepositConfirmRequest'
-                - $ref: '#/components/schemas/WithdrawalConfirmRequest'
-                - $ref: '#/components/schemas/TransferConfirmRequest'
+              $ref: '#/components/schemas/TransactionConfirmRequest'
       responses:
         '200':
           description: Транзакция подтверждена
@@ -139,7 +136,7 @@ paths:
 
   /transactions/{transactionId}/status:
     get:
-      summary: Получение статуса транзакции
+      summary: Статус транзакции
       parameters:
         - name: transactionId
           in: path
@@ -148,7 +145,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Статус и детали транзакции
+          description: Статус транзакции
           content:
             application/json:
               schema:
@@ -160,153 +157,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /transactions:
-    get:
-      summary: Поиск транзакций по фильтрам с пагинацией
-      parameters:
-        - in: query
-          name: userUid
-          schema:
-            type: string
-        - in: query
-          name: walletUid
-          schema:
-            type: string
-        - in: query
-          name: type
-          schema:
-            type: string
-            enum: [deposit, withdrawal, transfer]
-        - in: query
-          name: status
-          schema:
-            type: string
-        - in: query
-          name: dateFrom
-          schema:
-            type: string
-            format: date-time
-        - in: query
-          name: dateTo
-          schema:
-            type: string
-            format: date-time
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 0
-        - in: query
-          name: size
-          schema:
-            type: integer
-            default: 20
-      responses:
-        '200':
-          description: Список транзакций
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TransactionStatusResponse'
-
 components:
   schemas:
-    CreateWalletRequest:
-      type: object
-      required:
-        - userUid
-        - currency
-      properties:
-        userUid:
-          type: string
-          format: uuid
-          description: UID пользователя
-        currency:
-          type: string
-          description: Валюта кошелька (например, "RUB", "USD")
-        initialBalance:
-          type: number
-          format: double
-          description: Начальный баланс (опционально)
-
-    DepositInitRequest:
-      type: object
-      required:
-        - walletUid
-        - amount
-      properties:
-        walletUid:
-          type: string
-          format: uuid
-        amount:
-          type: number
-          format: double
-        description:
-          type: string
-
-    WithdrawalInitRequest:
-      type: object
-      required:
-        - walletUid
-        - amount
-      properties:
-        walletUid:
-          type: string
-          format: uuid
-        amount:
-          type: number
-          format: double
-        description:
-          type: string
-
-    TransferInitRequest:
-      type: object
-      required:
-        - fromWalletUid
-        - toWalletUid
-        - amount
-      properties:
-        fromWalletUid:
-          type: string
-          format: uuid
-        toWalletUid:
-          type: string
-          format: uuid
-        amount:
-          type: number
-          format: double
-        description:
-          type: string
-
-    DepositConfirmRequest:
-      type: object
-      required:
-        - transactionId
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-
-    WithdrawalConfirmRequest:
-      type: object
-      required:
-        - transactionId
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-
-    TransferConfirmRequest:
-      type: object
-      required:
-        - transactionId
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-
     WalletResponse:
       type: object
       properties:
@@ -316,86 +168,32 @@ components:
         userUid:
           type: string
           format: uuid
-        currency:
-          type: string
         balance:
           type: number
-          format: double
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+      required:
+        - walletUid
+        - userUid
+        - balance
 
-    TransactionInitResponse:
+    CreateWalletRequest:
       type: object
       properties:
-        transactionId:
+        userUid:
           type: string
           format: uuid
+        currency:
+          type: string
         type:
           type: string
-          enum: [deposit, withdrawal, transfer]
-        amount:
+          enum: [ STANDARD, PREMIUM ]
+        initialBalance:
           type: number
           format: double
-        fee:
-          type: number
-          format: double
-        estimatedCompletionTime:
-          type: string
-          format: date-time
-        conditions:
-          type: object
-          additionalProperties: true
-
-    TransactionConfirmResponse:
-      type: object
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-        status:
-          type: string
-          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
-        confirmedAt:
-          type: string
-          format: date-time
-
-    TransactionStatusResponse:
-      type: object
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-        type:
-          type: string
-          enum: [deposit, withdrawal, transfer]
-        status:
-          type: string
-          enum: [PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED]
-        amount:
-          type: number
-          format: double
-        fee:
-          type: number
-          format: double
-        fromWalletUid:
-          type: string
-          format: uuid
-        toWalletUid:
-          type: string
-          format: uuid
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        completedAt:
-          type: string
-          format: date-time
+          nullable: true
+      required:
+        - userUid
+        - currency
+        - type
 
     ErrorResponse:
       type: object
@@ -411,3 +209,221 @@ components:
           type: string
         path:
           type: string
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+
+
+    TransactionInitResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [deposit, withdrawal, transfer]
+        amount:
+          type: number
+        fee:
+          type: number
+        totalAmount:
+          type: number
+      required:
+        - transactionId
+        - type
+        - amount
+        - fee
+        - totalAmount
+
+    TransactionConfirmRequest:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        userUid:
+          type: string
+          format: uuid
+        walletUid:
+          type: string
+          format: uuid
+        targetWalletUid:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: number
+        fee:
+          type: number
+      required:
+        - transactionId
+        - userUid
+        - walletUid
+        - amount
+        - fee
+
+    TransactionConfirmResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+      required:
+        - transactionId
+        - status
+        - confirmedAt
+
+    TransactionStatusResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [deposit, withdrawal, transfer]
+        status:
+          type: string
+        amount:
+          type: number
+        fee:
+          type: number
+        totalAmount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - transactionId
+        - type
+        - status
+        - amount
+        - fee
+        - totalAmount
+        - createdAt
+
+    DepositInitRequest:
+      type: object
+      properties:
+        userUid:
+          type: string
+          format: uuid
+        walletUid:
+          type: string
+          format: uuid
+        amount:
+          type: number
+      required:
+        - userUid
+        - walletUid
+        - amount
+
+    WithdrawalInitRequest:
+      type: object
+      properties:
+        userUid:
+          type: string
+          format: uuid
+        walletUid:
+          type: string
+          format: uuid
+        amount:
+          type: number
+      required:
+        - userUid
+        - walletUid
+        - amount
+
+    TransferInitRequest:
+      type: object
+      properties:
+        userUid:
+          type: string
+          format: uuid
+        walletUid:
+          type: string
+          format: uuid
+        targetWalletUid:
+          type: string
+          format: uuid
+        amount:
+          type: number
+      required:
+        - userUid
+        - walletUid
+        - targetWalletUid
+        - amount
+
+    DepositRequestedEvent:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        walletId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - transactionId
+        - userId
+        - walletId
+        - amount
+        - currency
+        - timestamp
+
+    DepositCompletedEvent:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - transactionId
+        - amount
+        - timestamp
+
+    WithdrawalFailedEvent:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        failureReason:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - transactionId
+        - failureReason
+        - timestamp
+

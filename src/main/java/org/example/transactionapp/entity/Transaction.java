@@ -2,8 +2,12 @@ package org.example.transactionapp.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -13,40 +17,40 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "transactions")
-public class Transaction extends AuditableEntity{
+public class Transaction {
+
+    @Id
+    @Column(name = "uid")
+    private UUID id;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+    @Column(name = "modified_at")
+    private OffsetDateTime modifiedAt;
 
     @Column(name = "user_uid", nullable = false)
     private UUID userUid;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "wallet_uid", nullable = false)
-    private Wallet wallet;
+    @Column(name = "wallet_uid", nullable = false)
+    private UUID walletUid;
 
-    @Builder.Default
-    @Column(name = "amount", precision = 19, scale = 4, nullable = false)
-    private BigDecimal amount = BigDecimal.ZERO;
+    @Column(nullable = false)
+    private BigDecimal amount;
+
+    @Column(nullable = false)
+    private BigDecimal fee;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
     private PaymentType type;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 32, nullable = false)
     private TransactionStatus status;
 
-    @Column(name = "comment", length = 256)
-    private String comment;
+    @Column(name = "target_wallet_uid")
+    private UUID targetWalletUid;
 
-    @Column(name = "fee", precision = 19, scale = 4)
-    private BigDecimal fee;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "target_wallet_uid")
-    private Wallet targetWallet;
-
-    @Column(name = "payment_method_id")
-    private Long paymentMethodId;
-
-    @Column(name = "failure_reason", length = 256)
+    @Column(name = "failure_reason")
     private String failureReason;
+
 }

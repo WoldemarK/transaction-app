@@ -2,18 +2,79 @@ spring:
   application:
     name: transaction-app
 
-  datasource:
-    url: jdbc:postgresql://shardingsphere-proxy:3307/sharding_db
-    username: sharding_user
-    password: ${SPRING_DATASOURCE_PASSWORD:SecurePass123!}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      pool-name: ShardingProxyPool
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+    consumer:
+      group-id: transaction-app-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+
+  shardingsphere:
+    datasource:
+      names: ds0, ds1
+
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/wallet_0
+        username: postgres
+        password: postgres
+
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/wallet_1
+        username: postgres
+        password: postgres
+
+      rules:
+        sharding:
+          tables:
+
+            wallets:
+              actual-data-nodes: ds$->{0..1}.wallets_$->{0..1}
+              database-strategy:
+                standard:
+                  sharding-column: user_uid
+                  sharding-algorithm-name: db-hash-mod
+              table-strategy:
+                standard:
+                  sharding-column: user_uid
+                  sharding-algorithm-name: tbl-hash-mod
+
+            transactions:
+              actual-data-nodes: ds$->{0..1}.transactions_$->{0..1}
+              database-strategy:
+                standard:
+                  sharding-column: user_uid
+                  sharding-algorithm-name: db-hash-mod
+              table-strategy:
+                standard:
+                  sharding-column: user_uid
+                  sharding-algorithm-name: tbl-hash-mod
+
+          sharding-algorithms:
+            db-hash-mod:
+              type: HASH_MOD
+              props:
+                sharding-count: 2
+
+            tbl-hash-mod:
+              type: HASH_MOD
+              props:
+                sharding-count: 2
+
+          key-generators:
+            uuid:
+              type: UUID
 
   jpa:
     hibernate:

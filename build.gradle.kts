@@ -53,8 +53,13 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
 
     // Lombok
-    compileOnly("org.projectlombok:lombok")
-    annotationProcessor("org.projectlombok:lombok")
+    compileOnly("org.projectlombok:lombok:1.18.30")
+    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
+
+    // MapStruct
+    implementation("org.mapstruct:mapstruct:1.5.5.Final")
+    annotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
 
     // Monitoring
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
@@ -65,6 +70,7 @@ dependencies {
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.18")
     implementation("ch.qos.logback:logback-core:1.5.18")
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
     // Apache ShardingSphere JDBC
     implementation("org.apache.shardingsphere:shardingsphere-jdbc-core:5.4.1") {
@@ -72,8 +78,6 @@ dependencies {
         exclude(group = "org.glassfish.jaxb", module = "jaxb-core")
         exclude(group = "jakarta.xml.bind", module = "jakarta.xml.bind-api")
     }
-    // Logging JSON encoder
-    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -91,38 +95,35 @@ tasks.withType<BootJar> {
 
 /*
 ──────────────────────────────────────────────────────
-============== Api generation ==============
+=============== OpenAPI Generation ===================
 ──────────────────────────────────────────────────────
 */
 val openApiDir = file("${rootDir}/openapi")
 val foundSpecifications = openApiDir.listFiles { _, name -> name.endsWith(".yaml") || name.endsWith(".yml") } ?: emptyArray()
-logger.lifecycle("Found ${foundSpecifications.size} specifications: ${foundSpecifications.joinToString { it.name }}")
+logger.lifecycle("Found ${foundSpecifications.size} OpenAPI specifications: ${foundSpecifications.joinToString { it.name }}")
+
 foundSpecifications.forEach { specFile ->
-    val ourDir = getAbsolutePath(specFile.nameWithoutExtension)
-    val packageName = defineJavaPackageName(specFile.nameWithoutExtension)
-    val taskName = buildGenerateApiTaskName(specFile.nameWithoutExtension)
-    logger.lifecycle("Register task $taskName from ${ourDir.get()}")
+    val outputDirPath = layout.buildDirectory.dir("generated-sources/openapi/${specFile.nameWithoutExtension}")
+    val taskName = "generate${specFile.nameWithoutExtension.split(Regex("[^A-Za-z0-9]"))
+        .joinToString("") { it.replaceFirstChar(Char::uppercase) }}"
     val basePackage = "org.example.transactionapp"
+
     tasks.register<GenerateTask>(taskName) {
         generatorName.set("spring")
         inputSpec.set(specFile.absolutePath)
-        outputDir.set(ourDir)
-        configOptions.set(
+        outputDir.set(outputDirPath.get().asFile.absolutePath)
+        apiPackage.set("$basePackage.api")
+        modelPackage.set("$basePackage.dto")
+        library.set("spring-cloud")
+        additionalProperties.set(
             mapOf(
-                "library" to "spring-cloud",
-                "skipDefaultInterface" to "true",
+                "configPackage" to "$basePackage.config", // <- сюда
                 "useBeanValidation" to "true",
                 "openApiNullable" to "false",
+                "skipDefaultInterface" to "true",
                 "useTags" to "true",
                 "useJakartaEe" to "true",
                 "initializeCollections" to "false",
-                "apiPackage" to "$basePackage.api",
-                "modelPackage" to "$basePackage.dto",
-                "configPackage" to "$basePackage.config"
-            )
-        )
-        additionalProperties.set(
-            mapOf(
                 "lombok" to "true",
                 "lombokBuilder" to "true",
                 "lombokNoArgsConstructor" to "true",
@@ -131,62 +132,36 @@ foundSpecifications.forEach { specFile ->
             )
         )
         doFirst {
-            logger.lifecycle("$taskName: starting generation from ${specFile.name}")
+            logger.lifecycle("$taskName: Generating code from ${specFile.name}")
         }
     }
 }
-
-fun getAbsolutePath(nameWithoutExtension: String): Provider<String> {
-    return layout.buildDirectory
-        .dir("generated-sources/openapi/$nameWithoutExtension")
-        .map { it.asFile.absolutePath }
-}
-
-fun defineJavaPackageName(name: String): String {
-    val beforeDash = name.substringBefore('-')
-    val match = Regex("^[a-z]+").find(beforeDash)
-    return match?.value ?: beforeDash.lowercase()
-}
-
-fun buildGenerateApiTaskName(name: String): String {
-    return buildTaskName("generate", name)
-}
-
-fun buildJarTaskName(name: String): String {
-    return buildTaskName("jar", name)
-}
-
-fun buildTaskName(taskPrefix: String, name: String): String {
-    val prepareName = name
-        .split(Regex("[^A-Za-z0-9]"))
-        .filter { it.isNotBlank() }
-        .joinToString("") { it.replaceFirstChar(Char::uppercase) }
-
-    return "${taskPrefix}-${prepareName}"
-}
-
-val withoutExtensionNames = foundSpecifications.map { it.nameWithoutExtension }
+// Добавляем сгенерированные папки в main sourceSet
 sourceSets.named("main") {
     java {
-        withoutExtensionNames.forEach { name ->
-            srcDir(layout.buildDirectory.dir("generated-sources/openapi/$name/src/main/java"))
+        foundSpecifications.forEach { specFile ->
+            srcDir(layout.buildDirectory.dir("generated-sources/openapi/${specFile.nameWithoutExtension}/src/main/java"))
         }
     }
 }
 
+// Собираем все OpenAPI генерации в одну задачу
 tasks.register("generateAllOpenApi") {
     foundSpecifications.forEach { specFile ->
-        dependsOn(buildGenerateApiTaskName(specFile.nameWithoutExtension))
+        dependsOn("generate${specFile.nameWithoutExtension.split(Regex("[^A-Za-z0-9]"))
+            .joinToString("") { it.replaceFirstChar(Char::uppercase) } }")
     }
     doLast {
-        logger.lifecycle("generateAllOpenApi: all specifications has been generated")
+        logger.lifecycle("All OpenAPI specifications have been generated")
     }
 }
 
+// Генерация перед компиляцией
 tasks.named("compileJava") {
     dependsOn("generateAllOpenApi")
 }
 
+// Используем JUnit Platform для тестов
 tasks.withType<Test> {
     useJUnitPlatform()
 }

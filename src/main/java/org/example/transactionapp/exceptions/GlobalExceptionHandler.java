@@ -1,6 +1,6 @@
 package org.example.transactionapp.exceptions;
 
-import jakarta.servlet.http.HttpServletRequest;
+
 import org.example.transactionapp.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
